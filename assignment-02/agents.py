@@ -216,7 +216,18 @@ class ValueIterationAgent(BaseAgent):
                 # This is the core of Value Iteration: applying the Bellman Optimality Equation.
                 # V(s) = max_a Q(s, a)
                 # TODO : Implement the main part of Value Iteration
-               
+                action_values = []
+                for action in self.actions:
+                    q_value = 0.0
+                    transitions = self.env.transitions[state][action]  # List of (prob, next_state, reward)
+                    for prob, next_state, reward in transitions:
+                        q_value += prob * (reward + self.discount_factor * self.value_table[next_state])
+                    action_values.append(q_value)
+                
+                # Apply Bellman optimality: V(s) = max_a Q(s, a)
+                best_action_value = max(action_values)
+                new_value_table[state] = best_action_value
+                
                 # Update delta with the absolute change in the state's value.
                 delta = max(delta, abs(new_value_table[state] - self.value_table[state]))
 
@@ -228,7 +239,25 @@ class ValueIterationAgent(BaseAgent):
             current_policy = self.policy.copy()
             
             # TODO : Get the Greedy policy according to current Value estimates and update current policy
+            current_policy = {}
+            for state in self.states:
+                if state == self.env.goal or state in self.env.obstacles:
+                    continue
+                
+                best_action = None
+                best_q_value = float('-inf')
             
+                for action in self.actions:
+                    q_value = 0.0
+                    transitions = self.env.transitions[state][action]
+                    for prob, next_state, reward in transitions:
+                        q_value += prob * (reward + self.discount_factor * self.value_table[next_state])
+                    if q_value > best_q_value:
+                        best_q_value = q_value
+                        best_action = action
+            
+                current_policy[state] = best_action
+
             # Run one test episode and record the reward.
             reward = self.run_single_episode(current_policy)
             rewards_history.append(reward)
