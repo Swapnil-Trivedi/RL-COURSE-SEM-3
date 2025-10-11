@@ -216,17 +216,12 @@ class ValueIterationAgent(BaseAgent):
                 # This is the core of Value Iteration: applying the Bellman Optimality Equation.
                 # V(s) = max_a Q(s, a)
                 # TODO : Implement the main part of Value Iteration
-                action_values = []
-                for action in self.actions:
-                    q_value = 0.0
-                    transitions = self.env.transitions[state][action]  # List of (prob, next_state, reward)
-                    for prob, next_state, reward in transitions:
-                        q_value += prob * (reward + self.discount_factor * self.value_table[next_state])
+                action_values=[]
+                for action in self.env.get_actions():
+                    q_value=self._calculate_q_value(state,action)
                     action_values.append(q_value)
-                
-                # Apply Bellman optimality: V(s) = max_a Q(s, a)
-                best_action_value = max(action_values)
-                new_value_table[state] = best_action_value
+                best_action_value=max(action_values)
+                new_value_table[state]=best_action_value
                 
                 # Update delta with the absolute change in the state's value.
                 delta = max(delta, abs(new_value_table[state] - self.value_table[state]))
@@ -239,24 +234,18 @@ class ValueIterationAgent(BaseAgent):
             current_policy = self.policy.copy()
             
             # TODO : Get the Greedy policy according to current Value estimates and update current policy
-            current_policy = {}
+            current_policy={}
             for state in self.states:
-                if state == self.env.goal or state in self.env.obstacles:
+                if state in self.env.obstacles or state==self.env.goal:
                     continue
-                
-                best_action = None
-                best_q_value = float('-inf')
+                action_values=[]
+                for action in self.env.get_actions():
+                    q_value=self._calculate_q_value(state,action)
+                    action_values.append(q_value)
+                best_action_index=np.argmax(action_values)
+                best_action=self.env.get_actions()[best_action_index]
+                current_policy[state]=best_action
             
-                for action in self.actions:
-                    q_value = 0.0
-                    transitions = self.env.transitions[state][action]
-                    for prob, next_state, reward in transitions:
-                        q_value += prob * (reward + self.discount_factor * self.value_table[next_state])
-                    if q_value > best_q_value:
-                        best_q_value = q_value
-                        best_action = action
-            
-                current_policy[state] = best_action
 
             # Run one test episode and record the reward.
             reward = self.run_single_episode(current_policy)
@@ -303,7 +292,10 @@ class PolicyIterationAgent(BaseAgent):
                 # Consider only the action given by the current policy.
                 # And calculate the new value using the OLD value table.
                 # TODO : Implement the new Value estimation part
-                
+                action=self.policy[state]
+                q_value=self._calculate_q_value(state,action)
+                new_value_table[state]=q_value
+
                 delta = max(delta, abs(new_value_table[state] - self.value_table[state]))
 
             # Now, update the main value table with the new, synchronously calculated values.
@@ -328,7 +320,14 @@ class PolicyIterationAgent(BaseAgent):
             # Find the best action by looking one step ahead, similar to Value Iteration.
             # And update action for current state greedily
             # TODO : Implement the greedy action selection
-            
+            best_action = None
+            best_q_value = float('-inf')
+            for action in self.env.get_actions():
+                q_value = self._calculate_q_value(state, action)
+                if q_value > best_q_value:
+                    best_q_value = q_value
+                    best_action = action
+            self.policy[state] = best_action
             # If the best action is different from our old action, the policy is not yet stable.
             if old_action != best_action:
                 is_policy_stable = False
